@@ -16,7 +16,7 @@ package piv
 
 import (
 	"bytes"
-	"hash"
+	// "hash"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -1077,10 +1077,10 @@ func (k *keyRSA) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]
 	})
 }
 
-func (k *keyRSA) Decrypt(rand io.Reader, msg []byte, hash hash.Hash, opts crypto.DecrypterOpts) ([]byte, error) {
+func (k *keyRSA) Decrypt(rand io.Reader, msg []byte, opts crypto.DecrypterOpts) ([]byte, error) {
 	return k.auth.do(k.yk, k.pp, func(tx *scTx) ([]byte, error) {
 		// return ykDecryptRSA(tx, k.slot, k.pub, msg)
-		return ykDecryptOAEP(tx, k.slot, k.pub, msg, hash, rand)
+		return ykDecryptOAEP(tx, k.slot, k.pub, msg)
 	})
 }
 
@@ -1248,13 +1248,16 @@ func rsaAlg(pub *rsa.PublicKey) (byte, error) {
 	}
 }
 
-func ykDecryptOAEP(tx *scTx, slot Slot, pub *rsa.PublicKey, data []byte, hash hash.Hash, rand io.Reader) ([]byte, error) {
+func ykDecryptOAEP(tx *scTx, slot Slot, pub *rsa.PublicKey, data []byte) ([]byte, error) {
 	alg, err := rsaAlg(pub)
 	if err != nil {
 		return nil, err
 	}
 	fmt.Println(slot.Key)
 	fmt.Println(byte(slot.Key))
+	// attempt := slot.Key.(*rsa.PrivateKey)
+	fmt.Println(slot.Key)
+
 	cmd := apdu{
 		instruction: insAuthenticate,
 		param1:      alg,
