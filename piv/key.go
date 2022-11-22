@@ -16,6 +16,7 @@ package piv
 
 import (
 	"bytes"
+	"hash"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
@@ -1076,9 +1077,10 @@ func (k *keyRSA) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]
 	})
 }
 
-func (k *keyRSA) Decrypt(rand io.Reader, msg []byte, opts crypto.DecrypterOpts) ([]byte, error) {
+func (k *keyRSA) Decrypt(rand io.Reader, msg []byte, hash hash.Hash, opts crypto.DecrypterOpts) ([]byte, error) {
 	return k.auth.do(k.yk, k.pp, func(tx *scTx) ([]byte, error) {
-		return ykDecryptRSA(tx, k.slot, k.pub, msg)
+		// return ykDecryptRSA(tx, k.slot, k.pub, msg)
+		return ykDecryptOAEP(tx, k.slot, k.pub, msg, hash, rand)
 	})
 }
 
@@ -1246,11 +1248,13 @@ func rsaAlg(pub *rsa.PublicKey) (byte, error) {
 	}
 }
 
-func ykDecryptRSA(tx *scTx, slot Slot, pub *rsa.PublicKey, data []byte) ([]byte, error) {
+func ykDecryptOAEP(tx *scTx, slot Slot, pub *rsa.PublicKey, data []byte, hash hash.Hash, rand io.Reader) ([]byte, error) {
 	alg, err := rsaAlg(pub)
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println(slot.Key)
+	fmt.Println(byte(slot.Key))
 	cmd := apdu{
 		instruction: insAuthenticate,
 		param1:      alg,
@@ -1281,6 +1285,42 @@ func ykDecryptRSA(tx *scTx, slot Slot, pub *rsa.PublicKey, data []byte) ([]byte,
 	}
 	return nil, fmt.Errorf("invalid pkcs#1 v1.5 padding")
 }
+
+// func ykDecryptRSA(tx *scTx, slot Slot, pub *rsa.PublicKey, data []byte) ([]byte, error) {
+// 	alg, err := rsaAlg(pub)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	cmd := apdu{
+// 		instruction: insAuthenticate,
+// 		param1:      alg,
+// 		param2:      byte(slot.Key),
+// 		data: marshalASN1(0x7c,
+// 			append([]byte{0x82, 0x00},
+// 				marshalASN1(0x81, data)...)),
+// 	}
+// 	resp, err := tx.Transmit(cmd)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("command failed: %w", err)
+// 	}
+
+// 	sig, _, err := unmarshalASN1(resp, 1, 0x1c) // 0x7c
+// 	if err != nil {
+// 		return nil, fmt.Errorf("unmarshal response: %v", err)
+// 	}
+// 	decrypted, _, err := unmarshalASN1(sig, 2, 0x02) // 0x82
+// 	if err != nil {
+// 		return nil, fmt.Errorf("unmarshal response signature: %v", err)
+// 	}
+// 	// Decrypted blob contains a bunch of random data. Look for a NULL byte which
+// 	// indicates where the plain text starts.
+// 	for i := 2; i+1 < len(decrypted); i++ {
+// 		if decrypted[i] == 0x00 {
+// 			return decrypted[i+1:], nil
+// 		}
+// 	}
+// 	return nil, fmt.Errorf("invalid pkcs#1 v1.5 padding")
+// }
 
 // PKCS#1 v15 is largely informed by the standard library
 // https://github.com/golang/go/blob/go1.13.5/src/crypto/rsa/pkcs1v15.go
