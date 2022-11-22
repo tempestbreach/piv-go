@@ -1253,9 +1253,9 @@ func ykDecryptOAEP(tx *scTx, slot Slot, pub *rsa.PublicKey, data []byte) ([]byte
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println(alg)
 	fmt.Println(slot.Key)
 	fmt.Println(byte(slot.Key))
-	// attempt := slot.Key.(*rsa.PrivateKey)
 	fmt.Println(slot.Key)
 
 	cmd := apdu{
